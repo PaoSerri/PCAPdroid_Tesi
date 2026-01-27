@@ -8,28 +8,29 @@
 
     <!-- Header -->
     <LinearLayout
-        android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:baselineAligned="true"
+        android:padding="16dp">
 
-        <!-- Titolo -->
         <TextView
             android:id="@+id/analysisTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="Analisi traffico di rete"
             android:textSize="18sp"
-            android:textStyle="bold"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"/>
-
+            android:textStyle="bold" />
 
         <Spinner
             android:id="@+id/timeFilterSpinner"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"/>
+            android:layout_height="wrap_content" />
+
     </LinearLayout>
+
 
     <!-- ViewPager per scorrere i grafici -->
     <androidx.viewpager2.widget.ViewPager2

@@ -11,42 +11,50 @@ import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import serri.tesi.analysis.ChartFilterable
+import serri.tesi.analysis.TimeFilter
 
-class ProtocolChartFragment : Fragment(R.layout.fragment_protocol_chart) {
+class ProtocolChartFragment :
+    Fragment(R.layout.fragment_protocol_chart),
+    ChartFilterable {
+
+    private lateinit var chart: BarChart
+    private var currentFilter: TimeFilter = TimeFilter.ALL
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val protocolBarChart = view.findViewById<BarChart>(R.id.protocolBarChart)
-        loadProtocolBarChart(protocolBarChart)
+        chart = view.findViewById(R.id.protocolBarChart)
+
+        // carica con filtro iniziale
+        reloadChart()
     }
 
-    private fun loadProtocolBarChart(chart: BarChart) {
+    override fun onFilterChanged(filter: TimeFilter) {
+        currentFilter = filter
+        reloadChart()
+    }
 
+    private fun reloadChart() {
         val repo = TrackerRepository(requireContext())
-        val bytesByProtocol = repo.getBytesGroupedByProtocol()
+        val data = repo.getBytesGroupedByProtocol(currentFilter)
 
         val entries = ArrayList<BarEntry>()
         val labels = ArrayList<String>()
 
-        bytesByProtocol.entries.forEachIndexed { index, entry ->
+        data.entries.forEachIndexed { index, entry ->
             entries.add(BarEntry(index.toFloat(), entry.value.toFloat()))
             labels.add(entry.key)
         }
 
         val dataSet = BarDataSet(entries, "Byte totali per protocollo")
-        dataSet.valueTextSize = 12f
-
         val barData = BarData(dataSet)
-        barData.barWidth = 0.6f
 
         chart.data = barData
-
         chart.xAxis.apply {
             valueFormatter = IndexAxisValueFormatter(labels)
-            granularity = 1f
             position = XAxis.XAxisPosition.BOTTOM
-            setDrawGridLines(false)
+            granularity = 1f
         }
 
         chart.axisRight.isEnabled = false

@@ -10,20 +10,31 @@ import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import serri.tesi.analysis.ChartFilterable
+import serri.tesi.analysis.TimeFilter
 import serri.tesi.repo.TrackerRepository
 
-class DurationChartFragment : Fragment(R.layout.fragment_duration_chart) {
+class DurationChartFragment :
+    Fragment(R.layout.fragment_duration_chart),
+    ChartFilterable {
+
+    private lateinit var chart: BarChart
+    private var currentFilter: TimeFilter = TimeFilter.ALL
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        val chart = view.findViewById<BarChart>(R.id.durationBarChart)
-        loadDurationChart(chart)
+        chart = view.findViewById(R.id.durationBarChart)
+        reloadChart()
     }
 
-    private fun loadDurationChart(chart: BarChart) {
+    override fun onFilterChanged(filter: TimeFilter) {
+        currentFilter = filter
+        reloadChart()
+    }
+
+    private fun reloadChart() {
         val repo = TrackerRepository(requireContext())
-        val histogram = repo.getConnectionDurationHistogram()
+        val histogram = repo.getConnectionDurationHistogram(currentFilter)
 
         val entries = ArrayList<BarEntry>()
         val labels = ArrayList<String>()
@@ -33,19 +44,12 @@ class DurationChartFragment : Fragment(R.layout.fragment_duration_chart) {
             labels.add(entry.key)
         }
 
-        val dataSet = BarDataSet(entries, "Numero connessioni per durata")
-        dataSet.valueTextSize = 12f
-
-        val data = BarData(dataSet)
-        data.barWidth = 0.7f
-
-        chart.data = data
+        val dataSet = BarDataSet(entries, "Numero connessioni")
+        chart.data = BarData(dataSet)
 
         chart.xAxis.apply {
             valueFormatter = IndexAxisValueFormatter(labels)
             position = XAxis.XAxisPosition.BOTTOM
-            granularity = 1f
-            setDrawGridLines(false)
         }
 
         chart.axisRight.isEnabled = false
@@ -53,3 +57,4 @@ class DurationChartFragment : Fragment(R.layout.fragment_duration_chart) {
         chart.invalidate()
     }
 }
+

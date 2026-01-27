@@ -2,6 +2,7 @@ package serri.tesi.repo
 
 import android.content.ContentValues //usata per mappare chiave-val, da inserire nel db
 import android.content.Context //context necesario x inizializzare db helper
+import serri.tesi.analysis.TimeFilter
 import serri.tesi.db.TesiDbHelper //helper sqlite, gestisce creazione e versionamento del db locale
 import serri.tesi.model.ConnectionRecord //modello dati per connessioni (versione iniziale)
 import serri.tesi.model.HttpRequestRecord //modello dati per richieste http (vers iniziale)
@@ -401,17 +402,28 @@ class TrackerRepository(private val context: Context) {
 
     //metodo per raggruppare dati da mostrare in grafico per byte
     //aggregazionelato db riduce carico su ui
-    fun getBytesGroupedByProtocol(): Map<String, Long> {
+    fun getBytesGroupedByProtocol(filter: TimeFilter): Map<String, Long> {
         val db = dbHelper.readableDatabase
         val result = mutableMapOf<String, Long>()
 
+        val (where, args) =
+            if (filter.millis != null) {
+                Pair(
+                    "WHERE end_ts >= ?",
+                    arrayOf((System.currentTimeMillis() - filter.millis).toString())
+                )
+            } else {
+                Pair("", null)
+            }
+
         val cursor = db.rawQuery(
             """
-        SELECT protocol, SUM(bytes_tx + bytes_rx) as total_bytes
+        SELECT protocol, SUM(bytes_tx + bytes_rx) AS total_bytes
         FROM network_requests
+        $where
         GROUP BY protocol
         """.trimIndent(),
-            null
+            args
         )
 
         while (cursor.moveToNext()) {
@@ -424,39 +436,64 @@ class TrackerRepository(private val context: Context) {
         return result
     }
 
+
     //metodo per grafico app con maggiore scambio byte
     //prende le app con più byte scambiati nelle connessioni
     //Coalesce evita celle vuote + prendo 5 app
-    fun getTopAppsByBytes(limit: Int = 5): Map<String, Long> {
+    fun getTopAppsByBytes(
+        filter: TimeFilter,
+        limit: Int = 5
+    ): Map<String, Long> {
+
         val db = dbHelper.readableDatabase
         val result = LinkedHashMap<String, Long>()
+
+        val where =
+            if (filter.millis != null)
+                "WHERE end_ts >= ${System.currentTimeMillis() - filter.millis}"
+            else
+                ""
 
         val cursor = db.rawQuery(
             """
         SELECT 
-            COALESCE(app_name, 'App sconosciuta') as app,
-            SUM(bytes_tx + bytes_rx) as total_bytes
+            COALESCE(app_name, 'App sconosciuta') AS app,
+            SUM(bytes_tx + bytes_rx) AS total_bytes
         FROM network_requests
+        $where
         GROUP BY app
         ORDER BY total_bytes DESC
-        LIMIT ?
         """.trimIndent(),
-            arrayOf(limit.toString())
+            null
         )
+
+        var count = 0
+        var otherBytes = 0L
 
         while (cursor.moveToNext()) {
             val app = cursor.getString(0)
             val bytes = cursor.getLong(1)
-            result[app] = bytes
+
+            if (count < limit) {
+                result[app] = bytes
+            } else {
+                otherBytes += bytes
+            }
+            count++
         }
 
         cursor.close()
+
+        if (otherBytes > 0) {
+            result["Altre app"] = otherBytes
+        }
+
         return result
     }
 
     //metodo per grafico durata connessione
     //prende le connessioni in base alla durata
-    fun getConnectionDurationHistogram(): Map<String, Int> {
+    fun getConnectionDurationHistogram(filter: TimeFilter): Map<String, Int> {
         val db = dbHelper.readableDatabase
         val result = linkedMapOf(
             "< 100 ms" to 0,
@@ -466,10 +503,17 @@ class TrackerRepository(private val context: Context) {
             "> 5 s" to 0
         )
 
+        val where =
+            if (filter.millis != null)
+                "WHERE end_ts >= ${System.currentTimeMillis() - filter.millis}"
+            else
+                ""
+
         val cursor = db.rawQuery(
             """
         SELECT duration_ms
         FROM network_requests
+        $where
         """.trimIndent(),
             null
         )
@@ -489,7 +533,4 @@ class TrackerRepository(private val context: Context) {
         cursor.close()
         return result
     }
-
-
-
 }

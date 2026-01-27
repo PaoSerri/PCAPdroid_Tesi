@@ -9,25 +9,56 @@ import com.github.mikephil.charting.charts.PieChart
 import com.github.mikephil.charting.data.PieData
 import com.github.mikephil.charting.data.PieDataSet
 import com.github.mikephil.charting.data.PieEntry
-import serri.tesi.repo.TrackerRepository
 import com.github.mikephil.charting.formatter.PercentFormatter
+import serri.tesi.analysis.ChartFilterable
+import serri.tesi.analysis.TimeFilter
+import serri.tesi.repo.TrackerRepository
 
+class TopAppsChartFragment :
+    Fragment(R.layout.fragment_top_apps_chart),
+    ChartFilterable {
 
-class TopAppsChartFragment : Fragment(R.layout.fragment_top_apps_chart) {
+    private lateinit var chart: PieChart
+    private var currentFilter: TimeFilter = TimeFilter.ALL
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        val chart = view.findViewById<PieChart>(R.id.topAppsPieChart)
-        loadTopAppsChart(chart)
+        chart = view.findViewById(R.id.topAppsPieChart)
+        reloadChart()
     }
 
-    private fun loadTopAppsChart(chart: PieChart) {
-        val repo = TrackerRepository(requireContext())
-        val dataMap = repo.getTopAppsByBytes()
+    override fun onFilterChanged(filter: TimeFilter) {
+        currentFilter = filter
+        reloadChart()
+    }
 
-        val entries = dataMap.map {
-            PieEntry(it.value.toFloat(), it.key)
+    private fun reloadChart() {
+        val repo = TrackerRepository(requireContext())
+
+        // top 5 app per byte, filtrate temporalmente
+        val dataMap = repo.getTopAppsByBytes(
+            filter = currentFilter,
+            limit = 5
+        )
+
+        val totalBytes = dataMap.values.sum()
+        if (totalBytes == 0L) {
+            chart.clear()
+            return
+        }
+
+        val entries = mutableListOf<PieEntry>()
+        var shownBytes = 0L
+
+        dataMap.entries.forEach {
+            entries.add(PieEntry(it.value.toFloat(), it.key))
+            shownBytes += it.value
+        }
+
+        // aggiunta Altre app
+        val otherBytes = totalBytes - shownBytes
+        if (otherBytes > 0) {
+            entries.add(PieEntry(otherBytes.toFloat(), "Altre app"))
         }
 
         val dataSet = PieDataSet(entries, "")
@@ -36,21 +67,28 @@ class TopAppsChartFragment : Fragment(R.layout.fragment_top_apps_chart) {
             Color.rgb(219, 68, 55),
             Color.rgb(244, 180, 0),
             Color.rgb(15, 157, 88),
-            Color.GRAY
+            Color.rgb(171, 71, 188),
+            Color.GRAY // altre app
         )
 
+        // stile valori
         dataSet.valueTextSize = 12f
         dataSet.valueFormatter = PercentFormatter(chart)
 
-        chart.data = PieData(dataSet)
+        val pieData = PieData(dataSet)
+        chart.data = pieData
+
+        //configurazione chart
+        chart.setUsePercentValues(true) //percentuali nel grafico
+        chart.setDrawEntryLabels(false) //niente testo nel cerchio
         chart.description.isEnabled = false
 
-        chart.setUsePercentValues(true)
-        chart.setDrawEntryLabels(false)
-
         chart.legend.isEnabled = true
+        chart.legend.isWordWrapEnabled = true
+        chart.legend.setDrawInside(false)
         chart.legend.textSize = 12f
         chart.legend.formSize = 12f
+        chart.legend.isWordWrapEnabled = true
 
         chart.invalidate()
     }
