@@ -12,8 +12,8 @@ import com.emanuelef.remote_capture.R // Risorse grafiche/layout generate automa
 import serri.tesi.auth.SessionManager //Classe che gestisce la sessione utente (token JWT)
 import serri.tesi.service.SyncService //Servizio che si occupa della sincronizzazione con il backend
 import android.content.Intent // Intent x navigazione tra Activity
-import com.emanuelef.remote_capture.activities.MainActivity as PcapMainActivity // per evitare conflitto di nome con questa MainActivity
 import android.os.Environment // Accesso a directory standard del filesystem Android
+import serri.tesi.capture.TesiCaptureController // Classe che gestisce la cattura dati
 
 // Classi Java per gestione file e scrittura binaria
 import java.io.File
@@ -54,6 +54,8 @@ class MainActivity : AppCompatActivity() {
         //Inizializzazione standard dell’Activity
 
         setContentView(R.layout.activity_main) //Associa layout XML aActivity
+        TesiCaptureController.init(this) //Inizializza il controller della cattura
+        //inizializza CaptureHelper x rispettare lifcycle android, evita crash
 
         showFirstRunWarningIfNeeded() //Mostra avviso informativo solo al primo avvio (privacy / consenso)
 
@@ -77,20 +79,19 @@ class MainActivity : AppCompatActivity() {
 
         // start cattura dati
         startCaptureButton.setOnClickListener {
-            // avvio delegato a PCAPdroid
-            val intent = Intent(this, PcapMainActivity::class.java)
-            startActivity(intent)
-
-            Toast.makeText(this, "Richiesta avvio cattura", Toast.LENGTH_SHORT).show()
+            TesiCaptureController.start(this)
+            Toast.makeText(this, "Avvio cattura richiesto", Toast.LENGTH_SHORT).show()
+            refreshCaptureStatusDelayed()
         }
+
 
         //stop cattura dati
         stopCaptureButton.setOnClickListener {
-            val intent = Intent(this, PcapMainActivity::class.java)
-            startActivity(intent)
-
-            Toast.makeText(this, "Richiesta stop cattura", Toast.LENGTH_SHORT).show()
+            TesiCaptureController.stop()
+            Toast.makeText(this, "Stop cattura richiesto", Toast.LENGTH_SHORT).show()
+            refreshCaptureStatusDelayed()
         }
+
 
         // VISUALIZZA DATI
         openDataButton.setOnClickListener {
@@ -329,4 +330,12 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+
+    // metodo per aggiornare lo stato della cattura dopo un breve delay
+    private fun refreshCaptureStatusDelayed() {
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            updateCaptureStatus()
+        }, 800) // Attesa di 800 millisecondi
+    }
+
 }
