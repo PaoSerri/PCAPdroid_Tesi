@@ -143,15 +143,13 @@
 
 ---
 
-## Fase 10 - UI minima 
+## Fase 10 - UI  
 
-- [x] Creata Activity dedicata alla tesi
+- [x] Create Activity dedicata alla tesi/progetto
 - [x] Login utente backend
-- [x] Avvio cattura PCAPdroid
-- [x] Pulsante invio batch manuale
-- [x] Pulsante export CSV
-- [x] Pulsante cancellazione dati GDPR
-- [x] Feedback utente tramite Toast / Log
+- [x] MainActivity con cattura traffico, stato, info panel, button per visualizzare dati, scaricare, cancellare
+- [x] DataActivity visualizzazione lista dati traffcio
+- [x] AnalysisActivity visualizzazione dati aggregati tramite grafici
 
 ---
 

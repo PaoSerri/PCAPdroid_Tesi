@@ -12,15 +12,18 @@ import serri.tesi.service.SyncService //per sincronizzazione con backend auto
 
 
 /**
- * Repository responsabile dell'accesso al db locale
+ * Repository responsabile dell'accesso al database locale.
  *
- * incapsula tutte le operazioni di persistenza
- * relative alle connessioni intercettate, fornendo un'interfaccia
- * semplice al resto dell'applicazione.
+ * Incapsula tutte le operazioni di persistenza, lettura e aggregazione dei dati di rete intercettati.
  *
- * implementa il pattern Repository, separando la logica
- * di accesso ai dati dalla logica di business.
+ * Implementa Repository separando:
+ * - logica di accesso ai dati (SQLite)
+ * - service
+ * - UI
+ *
+ * cache persistente e punto di integrazione con sincronizzazione
  */
+
 class TrackerRepository(private val context: Context) {
     //serve context dopo per chiamare SyncService(context)
 
@@ -200,7 +203,7 @@ class TrackerRepository(private val context: Context) {
     /**
      * Recupera batch di connessioni non ancora sincronizzate con il backend.
      *
-     * I record vengono selezionati in base al campo `synced` e ordinati per ID,
+     * I record vengono selezionati in base al campo synced e ordinati per ID,
      * consentendo un invio incrementale dei dati.
      *
      * @param limit numero massimo di record da restituire.
@@ -370,7 +373,7 @@ class TrackerRepository(private val context: Context) {
         // costruzione dinamica dei placeholder (?, ?, ?)
         val placeholders = ids.joinToString(",") { "?" }
         val args = ids.map { it.toString() }.toTypedArray() // conversione id --> stringe per execSQL
-        //query di aggiornamento
+        //query di aggiornamento: record marcati dopo conferma backend, consente retry autom. in caso di errore
         val query = """
         UPDATE network_requests
         SET synced = 1
@@ -394,7 +397,7 @@ class TrackerRepository(private val context: Context) {
     }
 
     // elimina tutte le righe dalla tabella network_requests
-    // es: se utente decide di eliminare dati
+    // es: se utente decide di eliminare dati (diritto gdpr)
     fun clearAllNetworkRequests() {
         val db = dbHelper.writableDatabase
         db.execSQL("DELETE FROM network_requests")

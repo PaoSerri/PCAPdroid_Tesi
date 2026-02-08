@@ -13,26 +13,26 @@ import serri.tesi.model.NetworkRequestRecord
 /**
  * Servizio centrale di tracciamento delle connessioni di rete.
  *
- * punto di integrazione tra il sistema di intercettazione del traffico (PCAPdroid) e  livello di persistenza
+ * punto di integrazione tra il sistema di intercettazione del traffico (PCAPdroid) e livello di persistenza
  * introdotto dalla tesi.
  *
- * Si occupa di raccogliere i dati finali delle connessioni,
- * arricchirli con informazioni di contesto (GPS, applicazione di origine...)
- * e delegare la persistenza al repository.
+ * Si occupa di raccogliere i dati finali delle connessioni, e delegare la persistenza al repository.
  */
 object TrackerService {
     //object kotlin = singleton globale, una sola istanza in tutta l'app
+    //Implementato come singleton kotlin x garantire un unico punto di raccolta dei dati di rete.
     private lateinit var repository: TrackerRepository //repo x salvare e leggere dati da db locale
     private lateinit var userUuid: String //uuid anonim. associato a user corrente
 
-    // cache temporanea aggiunta per url di http request
-    private var lastHttpRequest: HttpRequestRecord? = null
-
+    private var lastHttpRequest: HttpRequestRecord? = null // cache temporanea aggiunta per url di http request
 
     /**
      * - inizializza repository x accesso a db locale
      * - genera UUID anonimo per l'utente
      * - inizializza il servizio di localizzazione.
+     *
+     * @JvmStatic consente l'invocazione diretta dei metodi
+     *  da codice Java (PCAPdroid), senza necessità di istanze.
      */
     @JvmStatic
     fun init(context: Context) {
@@ -123,8 +123,8 @@ object TrackerService {
         repository.debugDumpHttpRequests(20)
     }
 
-    //Metodo FINALE per log connessione versione completa
     /**
+     * Metodo FINALE per log connessione versione completa
      * Registra una connessione di rete conclusa
      *
      * Viene invocato esclusivamente alla chiusura della

@@ -9,8 +9,6 @@ import com.google.android.gms.location.* //api google play services x geolocaliz
  * Servizio di supporto per geolocalizzazione
  *
  * Fornisce ultima posizione GPS nota del dispositivo
- *
- * Il servizio è progettato per operare senza introdurre blocchi o dipendenze temporali nel tracciamento delle connessioni di rete
  */
 object LocationService { //singleton globale
 

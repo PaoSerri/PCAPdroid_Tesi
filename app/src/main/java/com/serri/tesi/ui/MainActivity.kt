@@ -32,7 +32,20 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 
-
+/**
+ * Activity principale dell'applicazione
+ *
+ * Rappresenta il punto di ingresso dell'utente e fornisce
+ * i controlli principali per:
+ * - avviare e arrestare la cattura del traffico
+ * - visualizzare i dati raccolti
+ * - gestire esportazione e cancellazione dei dati
+ *
+ * Questa Activity NON implementa logica di business:
+ * - delega la cattura a TesiCaptureController
+ * - delega la sincronizzazione a SyncService / BackendClient
+ * - utilizza il repository solo per lettura dello stato
+ */
 
 class MainActivity : AppCompatActivity() {
 
@@ -236,7 +249,6 @@ class MainActivity : AppCompatActivity() {
         updateCaptureStatus()
     }
 
-
     // metodo per aggiornare lo stato della cattura
     private fun updateCaptureStatus() {
         val active = isVpnActive()
@@ -260,12 +272,15 @@ class MainActivity : AppCompatActivity() {
 
     // metodo per verificare se la cattura è attiva/disattiva
     private fun isVpnActive(): Boolean {
+        //recupera connectivity manager di sistema
         val connectivityManager =
             getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
 
-        val networks = connectivityManager.allNetworks
+        val networks = connectivityManager.allNetworks //recupera reti
+        //itera su tutte le reti attive del dispositivo
         for (network in networks) {
-            val caps = connectivityManager.getNetworkCapabilities(network)
+            val caps = connectivityManager.getNetworkCapabilities(network) //ottiene capacità associate a rete
+            // se la rete utilizza trasport vpn, cattura considerata attiva
             if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN)) {
                 return true
             }
@@ -275,18 +290,19 @@ class MainActivity : AppCompatActivity() {
 
     //metodo per aggiornare info panel
     private fun updateInfoPanel() {
-        val repo = TrackerRepository(this)
+        val repo = TrackerRepository(this) //accesso al repo per leggere stato locale
 
-        val count = repo.getLastNetworkRequests(1000).size
+        val count = repo.getLastNetworkRequests(1000).size //numero totale di connessioni memorizzate localmente
         infoConnectionsText.text = "Connessioni raccolte: $count"
 
+        //sharedPreferences x memorizzare stato sync
         val prefs = getSharedPreferences("tesi_prefs", MODE_PRIVATE)
 
         val lastSync = prefs.getLong("last_sync_ts", 0L)
         val syncState = prefs.getString("last_sync_state", "IDLE")
         val pending = repo.countPendingNetworkRequests()
 
-        // ultimo sync
+        // visualizza timestamp ultimo tentativo sync
         if (lastSync == 0L) {
             infoLastSyncText.text = "Ultimo sync: -"
         } else {
@@ -312,13 +328,15 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    //richiesta permessi location
+    //richiesta permessi geolocation
     private fun requestLocationPermissionIfNeeded() {
+        //verifica se permesso è già stato concesso
         val fineGranted = ContextCompat.checkSelfPermission(
             this,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
 
+        // se non concesso, avvia richiesta permessi
         if (!fineGranted) {
             ActivityCompat.requestPermissions(
                 this,
@@ -332,10 +350,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     // metodo per aggiornare lo stato della cattura dopo un breve delay
+    // ritardo consente di completare avvio/arresto vpn prima di aggiornare ui
     private fun refreshCaptureStatusDelayed() {
         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
             updateCaptureStatus()
         }, 800) // Attesa di 800 millisecondi
     }
-
 }

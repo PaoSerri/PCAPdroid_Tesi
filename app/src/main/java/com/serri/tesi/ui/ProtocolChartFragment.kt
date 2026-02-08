@@ -30,23 +30,27 @@ class ProtocolChartFragment :
         reloadChart()
     }
 
+    // aggiorna il filtro corrente e ricarica il grafico
     override fun onFilterChanged(filter: TimeFilter) {
         currentFilter = filter
         reloadChart()
     }
 
     private fun reloadChart() {
+        // recupera dati dal repository locale
         val repo = TrackerRepository(requireContext())
         val data = repo.getBytesGroupedByProtocol(currentFilter)
 
-        val entries = ArrayList<BarEntry>()
+        val entries = ArrayList<BarEntry>() // dati da visualizzare
         val labels = ArrayList<String>()
 
+        // conversione dati aggregati in BarEntry
         data.entries.forEachIndexed { index, entry ->
             entries.add(BarEntry(index.toFloat(), entry.value.toFloat()))
             labels.add(entry.key)
         }
 
+        // configurazione del grafico
         val dataSet = BarDataSet(entries, "Byte totali per protocollo")
         val barData = BarData(dataSet)
 
@@ -59,6 +63,6 @@ class ProtocolChartFragment :
 
         chart.axisRight.isEnabled = false
         chart.description.isEnabled = false
-        chart.invalidate()
+        chart.invalidate() // ridisegna il grafico
     }
 }

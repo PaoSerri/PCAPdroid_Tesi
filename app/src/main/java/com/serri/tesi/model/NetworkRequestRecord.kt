@@ -47,7 +47,7 @@ data class NetworkRequestRecord(
     val longitude: Double?,
 
     //HTTP-only (non disponibili su HTTPS)
-    val httpMethod: String?,   // GET, POST, ...
-    val httpPath: String?,     // /api/search
-    val httpHost: String?      // Host header (es. example.com)
+    val httpMethod: String?, // GET, POST, ...
+    val httpPath: String?, // /api/search
+    val httpHost: String? // Host header (es. example.com)
 )

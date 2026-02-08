@@ -7,13 +7,8 @@ import java.security.MessageDigest
  * Utility per l'anonimizzazione dei dati sensibili.
  *
  * Fornisce una funzione di hashing basata su SHA-256,
- * utilizzata per anonimizzare informazioni potenzialmente riconducibili
- * all'utente (es. identificativo utente, dominio, indirizzi IP) prima
- * della trasmissione al backend remoto.
- *
- * L'uso di un salt statico consente di ridurre il rischio di attacchi
- * basati su rainbow table, mantenendo comunque la possibilità di
- * confrontare valori hashati in modo consistente.
+ * utilizzata x anonimizzare informazioni potenzialmente riconducibili
+ * all'utente (es. id utente, dominio, indirizzi IP) prima della trasmissione al backend remoto.
  */
 object HashUtils {
     //singleton: non mantiene stato e fornisce solo metodi di utilità

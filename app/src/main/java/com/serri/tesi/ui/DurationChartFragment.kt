@@ -18,43 +18,69 @@ class DurationChartFragment :
     Fragment(R.layout.fragment_duration_chart),
     ChartFilterable {
 
-    private lateinit var chart: BarChart
-    private var currentFilter: TimeFilter = TimeFilter.ALL
+    private lateinit var chart: BarChart //riferimento a grafico a barre
+    private var currentFilter: TimeFilter = TimeFilter.ALL //filtro temporale
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        chart = view.findViewById(R.id.durationBarChart)
-        reloadChart()
+        chart = view.findViewById(R.id.durationBarChart) //inizializza grafico da layout
+        reloadChart() //caricamento iniziale grafico
     }
 
+    //callback invocata da activity quando cambia filtro, aggiorna filtro e ricarica grafico
     override fun onFilterChanged(filter: TimeFilter) {
         currentFilter = filter
         reloadChart()
     }
 
+    //ricostruzione grafico in base a filtro corrente
+    //dati recuperati da repository locale
     private fun reloadChart() {
         val repo = TrackerRepository(requireContext())
+        //crea grafico
         val histogram = repo.getConnectionDurationHistogram(currentFilter)
 
         val entries = ArrayList<BarEntry>()
-        val labels = ArrayList<String>()
 
+        //etichette x intervalli di durata
+        val labels = listOf(
+            "< 100\nms",
+            "100–500\nms",
+            "500–1\ns",
+            "1–5\ns",
+            "> 5\ns"
+        )
+
+        // conversione dati aggregati in BarEntry
         histogram.entries.forEachIndexed { index, entry ->
             entries.add(BarEntry(index.toFloat(), entry.value.toFloat()))
-            labels.add(entry.key)
         }
 
+        // Dataset del grafico
         val dataSet = BarDataSet(entries, "Numero connessioni")
-        chart.data = BarData(dataSet)
+        val data = BarData(dataSet)
+        data.barWidth = 0.7f //imposta larghezza barre
+        chart.data = data
 
+        //configurazione asse x con etichette personalizzate
         chart.xAxis.apply {
             valueFormatter = IndexAxisValueFormatter(labels)
             position = XAxis.XAxisPosition.BOTTOM
+            granularity = 1f
+            isGranularityEnabled = true
+            labelCount = labels.size
+            setDrawGridLines(false)
+            // impostazioni x evitare sovrapposizioni + allineamento corretto
+            setCenterAxisLabels(false)
+            textSize = 12f
+            axisMinimum = -0.5f
+            axisMaximum = labels.size - 0.5f
         }
 
         chart.axisRight.isEnabled = false
         chart.description.isEnabled = false
-        chart.invalidate()
+
+        chart.invalidate() //forza ridisegno del grafico
     }
 }
 

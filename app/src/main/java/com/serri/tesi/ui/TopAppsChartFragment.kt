@@ -27,13 +27,14 @@ class TopAppsChartFragment :
         reloadChart()
     }
 
+    //callback che aggiorna il filtro corrente e ricarica il grafico
     override fun onFilterChanged(filter: TimeFilter) {
         currentFilter = filter
         reloadChart()
     }
 
     private fun reloadChart() {
-        val repo = TrackerRepository(requireContext())
+        val repo = TrackerRepository(requireContext()) // recupera dati dal repository locale
 
         // top 5 app per byte, filtrate temporalmente
         val dataMap = repo.getTopAppsByBytes(
@@ -41,13 +42,14 @@ class TopAppsChartFragment :
             limit = 5
         )
 
+        // se nessun dato, elimina il grafico
         val totalBytes = dataMap.values.sum()
         if (totalBytes == 0L) {
             chart.clear()
             return
         }
 
-        val entries = mutableListOf<PieEntry>()
+        val entries = mutableListOf<PieEntry>() // dati da visualizzare
         var shownBytes = 0L
 
         dataMap.entries.forEach {
@@ -90,6 +92,6 @@ class TopAppsChartFragment :
         chart.legend.formSize = 12f
         chart.legend.isWordWrapEnabled = true
 
-        chart.invalidate()
+        chart.invalidate() // ridisegna il grafico
     }
 }

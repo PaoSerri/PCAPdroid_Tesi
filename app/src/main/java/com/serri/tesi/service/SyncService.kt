@@ -36,9 +36,9 @@ class SyncService(private val context: Context) {
      * remoto e, in caso di successo, aggiorna lo stato locale della cache.
      */
     fun syncOnce(): SyncResult {
-        //accedere a db locale (cache SQLite)
+        //repo istanziato localmente per contesto aggiornato + indipendente da stati precedenti del servizio
         val repo = TrackerRepository(context) //crea istanza del repo x accedere a db locale
-        // val client = BackendClient("http://10.0.2.2:8080") //crea client x comunicare con backend
+
 
         //istanzia sessionmanager, x gestione sessione utente
         val sessionManager = SessionManager(context) // consente di recuperare token jwt salvato e riutilizzarlo
@@ -60,12 +60,11 @@ class SyncService(private val context: Context) {
             baseUrl = BackendConfig.getBaseUrl(), //indirizzo backend
             sessionManager = sessionManager // sessionManager passato a client x inclusione autom. token nell'header Auth. di ogni richiesta
         )
-        //10.0.2.2 permette all'emulatore Android di raggiungere il localhost della macchina host
 
         //recuperare da db connessioni non sinc.
         val pending = repo.getPendingNetworkRequests(30)
 
-        //se non trova record da sincronuzzare, esce
+        //se non trova record da sincronizzare, esce
         if (pending.isEmpty()) {
             Log.d("TESI_SYNC", "No record da sincronizzare")
             saveSyncState("IDLE")//salva stato, IDLE = tutto sinc, nulla da fare
@@ -108,6 +107,6 @@ class SyncService(private val context: Context) {
 }
 
 // Il SyncService non gestisce l'autenticazione.
-// Utilizza il token JWT esclusivamente per identificare l'utente
-// durante l'invio dei dati; l'associazione avviene lato backend.
+// Utilizza il token JWT esclusivamente per identificare l'utente durante l'invio dei dati
+// l'associazione avviene lato backend.
 
