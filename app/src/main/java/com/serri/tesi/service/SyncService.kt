@@ -44,64 +44,79 @@ class SyncService(private val context: Context) {
     @Volatile
     private var isSyncRunning = false
 
+    /**
+     * Esegue una singola operazione completa di sincronizzazione.
+     *
+     * - no sync parallele
+     * - verifica autenticazione utente
+     * - recupera batch di record non sincronizzati
+     * - invia dati al backend in modalità iterativa
+     * - marca  sincronizzati i record inviati con successo
+     * - ripete finché il backlog locale non è vuoto
+     *
+     * Implementa un modello di sincronizzazione a batch con
+     * consistenza eventuale e gestione robusta degli errori.
+     */
     fun syncOnce(): SyncResult {
-        //repo istanziato localmente per contesto aggiornato + indipendente da stati precedenti del servizio
-        val repo = TrackerRepository(context) //crea istanza del repo x accedere a db locale
 
+        // Evita concorrenza
+        if (isSyncRunning) return SyncResult.NO_DATA
+        isSyncRunning = true //sync in esecuzione
 
-        //istanzia sessionmanager, x gestione sessione utente
-        val sessionManager = SessionManager(context) // consente di recuperare token jwt salvato e riutilizzarlo
+        try {
 
-        saveSyncState("SYNCING")//statto sincronizzazione, caso generale: prova sincronizzazione con backend, (salva stato)
+            val repo = TrackerRepository(context) //repo x accesso a db locale
+            val sessionManager = SessionManager(context) //gestione sessione utente jwt
 
-        //gestione robustezza sessioni
-        //punto in cui sync service parla con backend, nessun dato deve uscire se user non è autenticato
+            if (!sessionManager.isLoggedIn()) { //verifica autenticazione
+                saveSyncState("ERROR")
+                return SyncResult.ERROR
+            }
 
-        //se utente non loggato, sync annullato
-        if (!sessionManager.isLoggedIn()) {
-            Log.w("TESI_SYNC", "Utente non loggato: sync annullato")
-            saveSyncState("ERROR") //salva errore sync in stato
-            return SyncResult.ERROR
-        }
+            //client http autenticato verso backend
+            val client = BackendClient(
+                baseUrl = BackendConfig.getBaseUrl(),
+                sessionManager = sessionManager
+            )
 
-        //creazione client http (autenticato) per comunicazione con backend remoto
-        val client = BackendClient(
-            baseUrl = BackendConfig.getBaseUrl(), //indirizzo backend
-            sessionManager = sessionManager // sessionManager passato a client x inclusione autom. token nell'header Auth. di ogni richiesta
-        )
+            saveSyncState("SYNCING") //stato ui sincronizzazione in corso
 
-        //recuperare da db connessioni non sinc.
-        val pending = repo.getPendingNetworkRequests(30)
+            var totalSynced = 0 //contatore record syncati
 
-        //se non trova record da sincronizzare, esce
-        if (pending.isEmpty()) {
-            Log.d("TESI_SYNC", "No record da sincronizzare")
-            saveSyncState("IDLE")//salva stato, IDLE = tutto sinc, nulla da fare
+            while (true) { //ciclo finche esistono record non synced
+
+                // Batch size, recupera 100 record (configurabile)
+                val pending = repo.getPendingNetworkRequests(100)
+
+                if (pending.isEmpty()) break // termina se non ci sono + record
+
+                //conversione modello locale in dto
+                val dtos = pending.map { NetworkRequestMapper.toDto(it) }
+                val batch = BatchDto(dtos)
+
+                val success = client.sendBatch(batch) //invio http al backend
+
+                if (!success) { //in caso di errore rete o server: interrompe ciclo, mantiene record non sync, retry
+                    saveSyncState("ERROR")
+                    return SyncResult.ERROR
+                }
+
+                repo.markAsSynced(pending.mapNotNull { it.id }) //marca record come già syncronizzati (synced=1)
+                totalSynced += pending.size
+            }
+
+            //stato finale
+            if (totalSynced > 0) {
+                Log.d("TESI_SYNC", "Total synced: $totalSynced")
+                saveSyncState("SUCCESS") //successo
+                return SyncResult.SUCCESS
+            }
+
+            saveSyncState("IDLE") //nessun dato da sincronizzare, IDLE = nulla da fare
             return SyncResult.NO_DATA
-        }
 
-        //convertire ogni request record (locale) in un dto (x trasmissione)
-        val dtos = pending.map { NetworkRequestMapper.toDto(it) }
-        val batch = BatchDto(dtos) // incapsula lista di dto in oggetto BatchDto
-
-        // DEBUG anonimizzazione, da togliere*
-        dtos.forEach {
-            Log.d("TESI_PRIVACY", "DTO anonimizzato=$it")
-        }
-
-        //Log.d("TESI_SYNC", "Calling sendBatch()")
-        val success = client.sendBatch(batch) //invia batch al backend, true se successo
-
-        if (success) { //se invio a buon fine
-            repo.markAsSynced(pending.mapNotNull { it.id }) //estrae id dei record sinc, synced=1 nel db locale
-            Log.d("TESI_SYNC", "Synced ${pending.size} records")
-
-            saveSyncState("SUCCESS") //salva stato
-            return SyncResult.SUCCESS
-        } else {
-            Log.e("TESI_SYNC", "Sync fallito")
-            saveSyncState("ERROR") //salva stato
-            return SyncResult.ERROR
+        } finally {
+            isSyncRunning = false //ripristino stato
         }
     }
 

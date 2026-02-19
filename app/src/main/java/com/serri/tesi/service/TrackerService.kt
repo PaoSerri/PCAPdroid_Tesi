@@ -26,9 +26,7 @@ object TrackerService {
 
     private var lastHttpRequest: HttpRequestRecord? = null // cache temporanea aggiunta per url di http request
     private lateinit var syncService: SyncService // servizio di sincronizzazione dati con backend
-
-
-
+    private const val SYNC_THRESHOLD = 50 //soglia trasmissione record
 
     /**
      * - inizializza repository x accesso a db locale
@@ -203,9 +201,13 @@ object TrackerService {
         //salvataggio record in db tramite repository
         repository.insertNetworkRequest(record)
 
-        // tenta sincronizzazione immediata (non bloccante)
-        Thread {
-            syncService.syncOnce()
-        }.start()
+        // Controllo soglia per invio batch
+        val pending = repository.countPendingNetworkRequests()
+
+        if (pending >= SYNC_THRESHOLD) {
+            Thread {
+                syncService.syncOnce()
+            }.start()
+        }
     }
 }

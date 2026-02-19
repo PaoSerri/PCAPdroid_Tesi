@@ -109,26 +109,7 @@ class TrackerRepository(private val context: Context) {
             put("longitude", record.longitude)
         }
         //inserimento record nella tabella + return id generato
-        //return db.insert("network_requests", null, values)
-
-        //update: sync automatico ogni 30 record
-        val id = db.insert("network_requests", null, values)
-
-        // auto-sync: controllo soglia
-        val pendingCount = countPendingNetworkRequests()
-
-        if (pendingCount >= 30 && pendingCount % 30 == 0) {
-            android.util.Log.d(
-                "TESI_SYNC",
-                "Auto-sync triggered: $pendingCount pending records"
-            )
-
-            // avvio sync automatico
-            Thread {
-                SyncService(context).syncOnce()
-            }.start()
-        }
-        return id
+        return db.insert("network_requests", null, values)
     }
 
     //DEBUG
