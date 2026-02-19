@@ -31,12 +31,12 @@ object NetworkRequestMapper {
 
             protocol = record.protocol,
 
-            //domain = record.domain,
-            //dst_ip = record.dstIp,
+            domain = record.domain,
+            dstIp = record.dstIp,
 
             // Anonimizzazione dati sensibili prima di invio
-            domainHash = record.domain?.let { HashUtils.sha256(it) },
-            dstIpHash = record.dstIp?.let { HashUtils.sha256(it) },
+            //domainHash = record.domain?.let { HashUtils.sha256(it) },
+            //dstIpHash = record.dstIp?.let { HashUtils.sha256(it) },
             dstPort = record.dstPort,
 
             bytesTx = record.bytesTx,

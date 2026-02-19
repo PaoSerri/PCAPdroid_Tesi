@@ -16,10 +16,12 @@ data class NetworkRequestDto(
     val appName: String?,
     val appUid: Int,
 
-    // Informazioni di rete (anonimizzate)
+    // Informazioni di rete
     val protocol: String,
-    val domainHash: String?,
-    val dstIpHash: String?,
+    //val domainHash: String?,
+    //val dstIpHash: String?,
+    val domain: String?,
+    val dstIp: String?,
     val dstPort: Int?,
 
     // Metriche di traffico

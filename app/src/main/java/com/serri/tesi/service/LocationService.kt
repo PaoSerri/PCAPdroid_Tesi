@@ -80,4 +80,16 @@ object LocationService { //singleton globale
     fun getLastLocation(): Pair<Double?, Double?> {
         return Pair(lastLat, lastLon) //restituisce valori in coppia
     }
+
+    // metodo per interrompere aggiornamenti gps
+    @JvmStatic
+    fun stop() {
+        try {
+            fusedClient.removeLocationUpdates(callback)
+            android.util.Log.d("LocationService", "GPS updates stopped")
+        } catch (e: Exception) {
+            android.util.Log.e("LocationService", "Error stopping GPS", e)
+        }
+    }
+
 }

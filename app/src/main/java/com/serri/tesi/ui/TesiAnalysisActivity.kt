@@ -86,9 +86,4 @@ class TesiAnalysisActivity : AppCompatActivity() {
     // getter che restituisce filtro corrente
     fun getCurrentFilter(): TimeFilter = currentFilter
 
-
-
-
-
-
 }

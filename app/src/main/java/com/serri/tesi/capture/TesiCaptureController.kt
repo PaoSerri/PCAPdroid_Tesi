@@ -5,6 +5,7 @@ import androidx.preference.PreferenceManager
 import com.emanuelef.remote_capture.CaptureHelper
 import com.emanuelef.remote_capture.CaptureService
 import com.emanuelef.remote_capture.model.CaptureSettings
+import serri.tesi.service.LocationService
 
 /**
  * Controller dedicato all'avvio e all'arresto della cattura del traffico di rete.
@@ -28,6 +29,9 @@ object TesiCaptureController {
         if (captureHelper == null) {
             captureHelper = CaptureHelper(activity, true)
         }
+
+        //Inizializza anche LocationService
+        LocationService.init(activity.applicationContext)
     }
 
     //avvio cattura traffico
@@ -39,6 +43,8 @@ object TesiCaptureController {
         val settings = CaptureSettings(activity, prefs)
 
         captureHelper?.startCapture(settings) //avvio da helper, non diretto
+
+        LocationService.start() //avvio servizio gps
     }
 
     //arresta il servizio di cattura
@@ -46,5 +52,6 @@ object TesiCaptureController {
         if (CaptureService.isServiceActive()) {
             CaptureService.stopService()
         }
+        LocationService.stop() //ferma servizio gps
     }
 }
