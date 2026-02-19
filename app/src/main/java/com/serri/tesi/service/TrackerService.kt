@@ -25,6 +25,10 @@ object TrackerService {
     private lateinit var userUuid: String //uuid anonim. associato a user corrente
 
     private var lastHttpRequest: HttpRequestRecord? = null // cache temporanea aggiunta per url di http request
+    private lateinit var syncService: SyncService // servizio di sincronizzazione dati con backend
+
+
+
 
     /**
      * - inizializza repository x accesso a db locale
@@ -39,6 +43,10 @@ object TrackerService {
         repository = TrackerRepository(context.applicationContext) // crea repo usando context dell'app
         userUuid = UUID.randomUUID().toString() // genera uuid casuale
         LocationService.init(context) // inizializza GPS
+
+        //Inizializza e avvia SyncService con auto-retry
+        syncService = SyncService(context.applicationContext)
+        syncService.startAutoRetry()
     }
 
     //*metodo vecchio*
@@ -194,5 +202,10 @@ object TrackerService {
 
         //salvataggio record in db tramite repository
         repository.insertNetworkRequest(record)
+
+        // tenta sincronizzazione immediata (non bloccante)
+        Thread {
+            syncService.syncOnce()
+        }.start()
     }
 }

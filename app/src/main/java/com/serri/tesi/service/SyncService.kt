@@ -8,6 +8,10 @@ import serri.tesi.network.BackendClient //client responsabile di comunicazione h
 import serri.tesi.repo.TrackerRepository //repo per accesso ai dati locali
 import serri.tesi.auth.SessionManager //per accedere a token jwt
 import serri.tesi.config.BackendConfig //url backend
+// x retry sync service
+import android.net.ConnectivityManager
+import android.net.Network
+
 
 
 /**
@@ -35,6 +39,11 @@ class SyncService(private val context: Context) {
      * metodo recupera un batch di record non sincronizzati, li invia al backend
      * remoto e, in caso di successo, aggiorna lo stato locale della cache.
      */
+
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile
+    private var isSyncRunning = false
+
     fun syncOnce(): SyncResult {
         //repo istanziato localmente per contesto aggiornato + indipendente da stati precedenti del servizio
         val repo = TrackerRepository(context) //crea istanza del repo x accedere a db locale
@@ -104,6 +113,99 @@ class SyncService(private val context: Context) {
             .putLong("last_sync_ts", System.currentTimeMillis())
             .apply()
     }
+
+    /**
+     * Avvia il meccanismo di retry automatico della sincronizzazione.
+     *
+     * Il servizio registra  listener di rete a livello di sistema,
+     * in modo da intercettare il momento in cui una connessione Internet diventa disponibile.
+     *
+     * Quando la rete torna disponibile:
+     * - verifica che non sia già in corso una sincronizzazione
+     * - controlla che esistano record pending
+     * - avvia un tentativo asincrono di sync
+     *
+     * Questo approccio consente di implementare un modello offline-first
+     * con consistenza eventuale, evitando dipendenze dal livello UI.
+     */
+    fun startAutoRetry() {
+
+        // Recupera il ConnectivityManager di sistema
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        // Evita doppia registrazione del callback
+        // (importante per prevenire retry duplicati)
+        if (networkCallback != null) return
+
+        // Definizione del callback di rete
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+
+            /**
+             * Metodo invocato automaticamente dal sistema
+             * quando una rete con capability INTERNET diventa disponibile.
+             */
+            override fun onAvailable(network: Network) {
+                super.onAvailable(network)
+
+                // Se una sincronizzazione è già in corso,
+                // evita di avviarne una nuova (no concorrenza)
+                if (isSyncRunning) return
+
+                // Verifica presenza di record non sincronizzati
+                val repo = TrackerRepository(context)
+                val pending = repo.countPendingNetworkRequests()
+
+                // Se non ci sono dati pending, non serve sincronizzare
+                if (pending == 0) return
+
+                isSyncRunning = true
+
+                // Avvio asincrono della sincronizzazione
+                Thread {
+                    try {
+                        val result = syncOnce()
+                        Log.d("TESI_SYNC", "Auto-retry result: $result")
+                    } finally {
+                        // Ripristina lo stato per consentire
+                        // eventuali futuri tentativi
+                        isSyncRunning = false
+                    }
+                }.start()
+            }
+        }
+
+        // Costruzione della richiesta di rete:
+        // ascolta qualunque rete con accesso Internet
+        val request = android.net.NetworkRequest.Builder()
+            .addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        // Registrazione effettiva del callback
+        connectivityManager.registerNetworkCallback(request, networkCallback!!)
+    }
+
+
+    /**
+     * Interrompe il meccanismo di retry automatico.
+     *
+     * Rimuove il listener di rete precedentemente registrato
+     * per evitare memory leak o duplicazioni di callback.
+     *
+     * Utile nel caso in cui si voglia disattivare esplicitamente
+     * il servizio di sincronizzazione.
+     */
+    fun stopAutoRetry() {
+
+        val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        networkCallback?.let {
+            connectivityManager.unregisterNetworkCallback(it)
+            networkCallback = null
+        }
+    }
+
 }
 
 // Il SyncService non gestisce l'autenticazione.
