@@ -1,13 +1,17 @@
 package serri.tesi.config
-
 import android.os.Build
 
 object BackendConfig {
     fun getBaseUrl(): String {
+        return "https://traffic-collector.iot-prism-lab.cs.unibo.it"
+    }
+
+    /*
+    fun getBaseUrl(): String {
         //return "http://localhost:3000"
         return "http://127.0.0.1:3000"
     }
-   /* fun getBaseUrl(): String {
+   fun getBaseUrl(): String {
         return if (isEmulator()) {
             "http://10.0.2.2:3000"
         } else {

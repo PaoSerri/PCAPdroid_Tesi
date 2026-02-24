@@ -94,7 +94,7 @@ class MainActivity : AppCompatActivity() {
         startCaptureButton.setOnClickListener {
             TesiCaptureController.start(this)
             Toast.makeText(this, "Avvio cattura richiesto", Toast.LENGTH_SHORT).show()
-            refreshCaptureStatusDelayed()
+            refreshCaptureStatusUntilStable()
         }
 
 
@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity() {
         stopCaptureButton.setOnClickListener {
             TesiCaptureController.stop()
             Toast.makeText(this, "Stop cattura richiesto", Toast.LENGTH_SHORT).show()
-            refreshCaptureStatusDelayed()
+            refreshCaptureStatusUntilStable()
         }
 
 
@@ -350,10 +350,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     // metodo per aggiornare lo stato della cattura dopo un breve delay
-    // ritardo consente di completare avvio/arresto vpn prima di aggiornare ui
-    private fun refreshCaptureStatusDelayed() {
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-            updateCaptureStatus()
-        }, 800) // Attesa di 800 millisecondi
+    private fun refreshCaptureStatusUntilStable() {
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
+        var attempts = 0
+        val maxAttempts = 10
+
+        val runnable = object : Runnable {
+            override fun run() {
+                updateCaptureStatus()
+
+                attempts++
+                if (attempts < maxAttempts) {
+                    handler.postDelayed(this, 500)
+                }
+            }
+        }
+
+        handler.post(runnable)
     }
 }
