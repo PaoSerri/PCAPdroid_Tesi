@@ -31,11 +31,21 @@ class TesiRegisterActivity : AppCompatActivity() {
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString()
 
-            if (email.isBlank() || password.isBlank()) {
-                Toast.makeText(this, "Email e password obbligatorie", Toast.LENGTH_SHORT).show()
+            //pulizia errori
+            emailInput.error = null
+            passwordInput.error = null
+
+            if (email.isBlank()) {
+                emailInput.error = "Email obbligatoria"
                 return@setOnClickListener
             }
 
+            if (password.isBlank()) {
+                passwordInput.error = "Password obbligatoria"
+                return@setOnClickListener
+            }
+
+            registerButton.isEnabled = false
             thread {
                 val authClient = AuthClient(
                     BackendConfig.getBaseUrl()
@@ -46,6 +56,7 @@ class TesiRegisterActivity : AppCompatActivity() {
                 val errorMessage = result.second
 
                 runOnUiThread {
+
                     if (registered) {
 
                         thread {
@@ -60,17 +71,32 @@ class TesiRegisterActivity : AppCompatActivity() {
                                     startActivity(Intent(this, MainActivity::class.java))
                                     finish()
                                 } else {
+                                    registerButton.isEnabled = true
                                     Toast.makeText(this, "Errore login automatico", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
 
                     } else {
-                        Toast.makeText(
-                            this,
-                            errorMessage ?: "Registrazione fallita",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        registerButton.isEnabled = true
+                        when (errorMessage) {
+                            "Email non valida" -> {
+                                emailInput.error = "Formato email non valido"
+                            }
+                            "Password troppo corta" -> {
+                                passwordInput.error = "Minimo 6 caratteri"
+                            }
+                            "Email già registrata" -> {
+                                emailInput.error = "Email già utilizzata"
+                            }
+                            else -> {
+                                Toast.makeText(
+                                    this,
+                                    errorMessage ?: "Registrazione fallita",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     }
                 }
             }

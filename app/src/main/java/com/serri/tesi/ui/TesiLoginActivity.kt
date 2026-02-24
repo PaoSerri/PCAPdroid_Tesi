@@ -47,39 +47,45 @@ class TesiLoginActivity : AppCompatActivity() {
         //login
         loginButton.setOnClickListener {
 
-            //leggo valori input e li salvo
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString()
 
-            //validazione lato client delle credenziali
-            if (email.isBlank() || password.isBlank()) {
-                Toast.makeText(this, "Email e password obbligatorie", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener //interrompe esecuzione listener
+            // Pulizia errori precedenti
+            emailInput.error = null
+            passwordInput.error = null
+
+            if (email.isBlank()) {
+                emailInput.error = "Email obbligatoria"
+                return@setOnClickListener
             }
 
-            //Avvia thread separato per evitare operazioni di rete sul main thread
+            if (password.isBlank()) {
+                passwordInput.error = "Password obbligatoria"
+                return@setOnClickListener
+            }
+
+            loginButton.isEnabled = false
+
             thread {
                 val authClient = AuthClient(
                     BackendConfig.getBaseUrl()
-                ) //Client http, comunica con backend
+                )
 
-                //invia credenziali e riceve token jwt/null
                 val token = authClient.login(email, password)
 
-                //torna su thread principale x aggiornare interfaccia
                 runOnUiThread {
-                    //controllo del token
+
                     if (token != null) {
-                        sessionManager.saveToken(token) //salva token
+                        sessionManager.saveToken(token)
                         Toast.makeText(this, "Login effettuato", Toast.LENGTH_SHORT).show()
 
-                        //Avvia main activity
                         startActivity(
                             Intent(this, MainActivity::class.java)
                         )
-                        finish() //chiudo login activity
+                        finish()
                     } else {
-                        Toast.makeText(this, "Login fallito", Toast.LENGTH_SHORT).show()
+                        loginButton.isEnabled = true
+                        passwordInput.error = "Credenziali non valide"
                     }
                 }
             }
