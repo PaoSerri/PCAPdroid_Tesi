@@ -139,20 +139,47 @@ class MainActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     try {
-                        val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) //directory privata dell’app per download
-                        // File CSV di output
-                        val file = File(dir, "tesi_network_data.csv")
+                        // Genera timestamp per nome file
+                        val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()) //crea formatter x generare timestamp nel nome
+                        val timestamp = sdf.format(java.util.Date()) //genera timestamp corrente
+                        val fileName = "tesi_network_data_$timestamp.csv" //costruisce nome file + timestamp (evita sovrascrizione)
 
-                        FileOutputStream(file).use {
-                            it.write(csvBytes)
-                            //Scrive i byte sul filesystem
+                        val resolver = contentResolver //content resolver x interagire cone MediaStore
+
+                        //prepara i metadati del file da salvare
+                        val contentValues = android.content.ContentValues().apply {
+                            put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName) //nome visibile in cartella Download
+                            put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/csv") //tipo mime del file, csv = text/csv
+                            put(android.provider.MediaStore.Downloads.IS_PENDING, 1) //ispending = 1, file in fase di scrittura
                         }
 
-                        Toast.makeText(
-                            this,
-                            "CSV salvato in ${file.absolutePath}",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        //ottiene uri dei download nello storage est. primario
+                        val collection = android.provider.MediaStore.Downloads
+                            .getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+
+                        val itemUri = resolver.insert(collection, contentValues) //inserisce file nel mediastore (crea entry)
+
+                        if (itemUri != null) {
+                            //aperto stream di scrittura verso file creato
+                            resolver.openOutputStream(itemUri)?.use { outputStream ->
+                                outputStream.write(csvBytes) //scrive i byte del csv nel file
+                            }
+
+                            //completata la scrittura, pulizia
+                            contentValues.clear()
+                            contentValues.put(android.provider.MediaStore.Downloads.IS_PENDING, 0)
+                            //impostato ispending = 0, file definitivo e visibile
+                            resolver.update(itemUri, contentValues, null, null)
+
+                            //mostra toast a utente
+                            Toast.makeText(
+                                this,
+                                "CSV salvato in Download come $fileName",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(this, "Errore creazione file", Toast.LENGTH_SHORT).show()
+                        }
 
                     } catch (e: Exception) {
                         Log.e("TESI_CSV", "Errore salvataggio file", e)
@@ -349,24 +376,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // metodo per aggiornare lo stato della cattura dopo un breve delay
+    // Metodo che aggiorna lo stato della cattura più volte,
+    // finché non si stabilizza (retry con piccolo delay)
     private fun refreshCaptureStatusUntilStable() {
+        // Crea un Handler associato al Main Thread (UI Thread)
+        // Serve per eseguire codice con un ritardo temporale
         val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
-        var attempts = 0
-        val maxAttempts = 10
+        var attempts = 0 //contatore tentativi effettuati
+        val maxAttempts = 10 //max tentativi x evitare loop
 
-        val runnable = object : Runnable {
-            override fun run() {
-                updateCaptureStatus()
+        val runnable = object : Runnable { //def. runnable = blocco di codice eseguibile
+            override fun run() { //metodo eseguito ogni volta che runnable parte
+                updateCaptureStatus() //aggiorna stato corrente cattura
 
                 attempts++
                 if (attempts < maxAttempts) {
-                    handler.postDelayed(this, 500)
+                    handler.postDelayed(this, 500) //riesegue runnable dopo 500ms
                 }
             }
         }
 
-        handler.post(runnable)
+        handler.post(runnable) //avvia subito prima esecuzione del runnable
     }
 }
