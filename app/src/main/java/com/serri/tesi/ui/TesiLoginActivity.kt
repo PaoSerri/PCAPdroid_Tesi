@@ -13,6 +13,7 @@ import serri.tesi.auth.SessionManager //gestore della sessione utente (salvatagg
 import serri.tesi.network.AuthClient //client http per autenticazione verso backend
 import com.emanuelef.remote_capture.R //risorse grafiche/layout app
 import serri.tesi.config.BackendConfig
+import android.widget.TextView
 
 /**
  * Activity responsabile di autenticazione utente.
@@ -35,6 +36,13 @@ class TesiLoginActivity : AppCompatActivity() {
         val emailInput = findViewById<EditText>(R.id.emailInput)
         val passwordInput = findViewById<EditText>(R.id.passwordInput)
         val loginButton = findViewById<Button>(R.id.loginButton) //bottone login
+
+        //link registrazione
+        val goToRegister = findViewById<TextView>(R.id.goToRegister)
+
+        goToRegister.setOnClickListener {
+            startActivity(Intent(this, TesiRegisterActivity::class.java))
+        }
 
         //login
         loginButton.setOnClickListener {

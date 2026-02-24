@@ -52,4 +52,41 @@ class AuthClient(private val baseUrl: String) {
             null
         }
     }
+    // metodo per registrazione utente
+    fun register(email: String, password: String): Pair<Boolean, String?> {
+
+        return try {
+
+            val json = gson.toJson(LoginRequestDto(email, password))
+            val body = json.toRequestBody(
+                "application/json; charset=utf-8".toMediaType()
+            )
+
+            val request = Request.Builder()
+                .url("$baseUrl/auth/register")
+                .post(body)
+                .build()
+
+            client.newCall(request).execute().use { response ->
+
+                val responseBody = response.body?.string()
+
+                if (response.isSuccessful) {
+                    Pair(true, null)
+                } else {
+                    val errorMsg = try {
+                        val jsonObj = gson.fromJson(responseBody, Map::class.java)
+                        jsonObj["message"]?.toString()
+                    } catch (e: Exception) {
+                        responseBody
+                    }
+
+                    Pair(false, errorMsg)
+                }
+            }
+
+        } catch (e: Exception) {
+            Pair(false, "Errore di rete")
+        }
+    }
 }

@@ -75,7 +75,12 @@
         <activity
             android:name="serri.tesi.ui.TesiAnalysisActivity"
             android:exported="false"
-            android:theme="@style/TesiTheme"/><!-- fine -->
+            android:theme="@style/TesiTheme" />
+        <activity
+            android:name="serri.tesi.ui.TesiRegisterActivity"
+            android:exported="false"
+            android:theme="@style/TesiTheme" />
+        <!-- fine -->
         <activity
             android:name=".activities.MainActivity"
             android:exported="true"
