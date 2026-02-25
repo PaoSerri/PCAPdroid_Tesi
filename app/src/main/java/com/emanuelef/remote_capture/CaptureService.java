@@ -712,10 +712,13 @@ public class CaptureService extends VpnService implements Runnable {
         }
 
         // Status notification builder
+        //fix tesi
         PendingIntent pi = PendingIntent.getActivity(this, 0,
-                new Intent(this, MainActivity.class), Utils.getIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT));
+                new Intent(this, serri.tesi.ui.MainActivity.class), Utils.getIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT));
         mStatusBuilder = new NotificationCompat.Builder(this, NOTIFY_CHAN_VPNSERVICE)
-                .setSmallIcon(R.drawable.ic_logo)
+                //.setSmallIcon(R.drawable.ic_logo)
+                //modifica x tesi
+                .setSmallIcon(R.mipmap.ic_launcher) //icona personalizzata
                 .setColor(ContextCompat.getColor(this, R.color.colorPrimary))
                 .setContentIntent(pi)
                 .setOngoing(true)
@@ -734,12 +737,16 @@ public class CaptureService extends VpnService implements Runnable {
                 .setPriority(NotificationCompat.PRIORITY_HIGH); // see IMPORTANCE_HIGH
     }
 
+    //fix tesi msg notifica
     private Notification getStatusNotification() {
+        /*
         String msg = String.format(getString(R.string.notification_msg),
                 Utils.formatBytes(last_bytes), Utils.formatNumber(this, last_connections));
 
         mStatusBuilder.setContentText(msg);
 
+         */
+        mStatusBuilder.setContentText("Monitoraggio traffico in corso");
         return mStatusBuilder.build();
     }
 

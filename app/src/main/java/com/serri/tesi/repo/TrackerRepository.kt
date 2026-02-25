@@ -377,6 +377,19 @@ class TrackerRepository(private val context: Context) {
         return count
     }
 
+    // metodo per contare tutte le righe nella tabella network_requests, e riportare numero connessioni in infopanel di main activity
+    fun countAllNetworkRequests(): Int {
+        val db = dbHelper.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT COUNT(*) FROM network_requests",
+            null
+        )
+        cursor.moveToFirst()
+        val count = cursor.getInt(0)
+        cursor.close()
+        return count
+    }
+
     // elimina tutte le righe dalla tabella network_requests
     // es: se utente decide di eliminare dati (diritto gdpr)
     fun clearAllNetworkRequests() {

@@ -32,6 +32,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 
+import serri.tesi.utils.DownloadNotifier //per notifica download
 /**
  * Activity principale dell'applicazione
  *
@@ -72,6 +73,7 @@ class MainActivity : AppCompatActivity() {
 
         showFirstRunWarningIfNeeded() //Mostra avviso informativo solo al primo avvio (privacy / consenso)
 
+        DownloadNotifier.requestNotificationPermissionIfNeeded(this) // richiede permesso notifiche
         sessionManager = SessionManager(this) // Inizializza gestore sessione usando il Context dell’Activity
 
         //assegnazione variabili --> elementi ui
@@ -132,57 +134,102 @@ class MainActivity : AppCompatActivity() {
 
                 if (csvBytes == null || csvBytes.isEmpty()) {
                     runOnUiThread {
-                        Toast.makeText(this, "Nessun dato da esportare", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Nessun dato pronto da esportare", Toast.LENGTH_SHORT).show()
                     }
                     return@Thread
                 }
 
                 runOnUiThread {
                     try {
-                        // Genera timestamp per nome file
-                        val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault()) //crea formatter x generare timestamp nel nome
-                        val timestamp = sdf.format(java.util.Date()) //genera timestamp corrente
-                        val fileName = "tesi_network_data_$timestamp.csv" //costruisce nome file + timestamp (evita sovrascrizione)
 
-                        val resolver = contentResolver //content resolver x interagire cone MediaStore
+                        // Crea un formatter per generare un timestamp nel nome del file
+                        val sdf = java.text.SimpleDateFormat(
+                            "yyyyMMdd_HHmmss",
+                            java.util.Locale.getDefault()
+                        )
 
-                        //prepara i metadati del file da salvare
+                        // Genera il timestamp corrente
+                        val timestamp = sdf.format(java.util.Date())
+
+                        // Costruisce il nome del file includendo il timestamp
+                        // (evita sovrascritture di file precedenti)
+                        val fileName = "tesi_network_data_$timestamp.csv"
+
+                        // Ottiene il ContentResolver per interagire con il MediaStore
+                        val resolver = contentResolver
+
+                        // Prepara i metadati del file da salvare
                         val contentValues = android.content.ContentValues().apply {
-                            put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName) //nome visibile in cartella Download
-                            put(android.provider.MediaStore.Downloads.MIME_TYPE, "text/csv") //tipo mime del file, csv = text/csv
-                            put(android.provider.MediaStore.Downloads.IS_PENDING, 1) //ispending = 1, file in fase di scrittura
+
+                            // Nome visibile del file
+                            put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+
+                            // Tipo MIME del file
+                            put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+
+                            // Se Android >= 10 (API 29 - Q), usa Scoped Storage
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+
+                                // Specifica la cartella Download come percorso relativo
+                                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/")
+
+                                // Marca il file come "in scrittura"
+                                put(android.provider.MediaStore.MediaColumns.IS_PENDING, 1)
+                            }
                         }
 
-                        //ottiene uri dei download nello storage est. primario
-                        val collection = android.provider.MediaStore.Downloads
-                            .getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
-
-                        val itemUri = resolver.insert(collection, contentValues) //inserisce file nel mediastore (crea entry)
-
-                        if (itemUri != null) {
-                            //aperto stream di scrittura verso file creato
-                            resolver.openOutputStream(itemUri)?.use { outputStream ->
-                                outputStream.write(csvBytes) //scrive i byte del csv nel file
+                        // Se Android >= 10 usa la collezione Downloads ufficiale
+                        // altrimenti usa la collezione generica Files
+                        val collection =
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                android.provider.MediaStore.Downloads
+                                    .getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            } else {
+                                android.provider.MediaStore.Files
+                                    .getContentUri("external")
                             }
 
-                            //completata la scrittura, pulizia
-                            contentValues.clear()
-                            contentValues.put(android.provider.MediaStore.Downloads.IS_PENDING, 0)
-                            //impostato ispending = 0, file definitivo e visibile
-                            resolver.update(itemUri, contentValues, null, null)
+                        // Inserisce il file nel MediaStore (crea l'entry)
+                        val itemUri = resolver.insert(collection, contentValues)
 
-                            //mostra toast a utente
+                        if (itemUri != null) {
+
+                            // Apre uno stream di scrittura verso il file creato
+                            resolver.openOutputStream(itemUri)?.use { outputStream ->
+
+                                // Scrive i byte del CSV nel file
+                                outputStream.write(csvBytes)
+                            }
+
+                            // Se Android >= 10, rende il file definitivo e visibile
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                                contentValues.clear()
+                                contentValues.put(
+                                    android.provider.MediaStore.MediaColumns.IS_PENDING,
+                                    0
+                                )
+                                resolver.update(itemUri, contentValues, null, null)
+                            }
+
+                            DownloadNotifier.showDownloadCompleted(this, fileName, itemUri) //notifica download
+                            // Notifica di successo
                             Toast.makeText(
                                 this,
                                 "CSV salvato in Download come $fileName",
                                 Toast.LENGTH_LONG
                             ).show()
+
+
                         } else {
                             Toast.makeText(this, "Errore creazione file", Toast.LENGTH_SHORT).show()
                         }
 
                     } catch (e: Exception) {
+
+                        // Log tecnico per debug
                         Log.e("TESI_CSV", "Errore salvataggio file", e)
+
+                        // Notifica utente
                         Toast.makeText(this, "Errore salvataggio file", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -250,12 +297,16 @@ class MainActivity : AppCompatActivity() {
         AlertDialog.Builder(this)
             .setTitle("Avviso importante")
             .setMessage(
-                "Questa applicazione intercetta il traffico di rete del dispositivo " +
-                        "per analizzare le connessioni effettuate dalle applicazioni.\n\n" +
-                        "I dati raccolti vengono anonimizzati e possono includere una " +
-                        "posizione geografica approssimata.\n\n" +
+                "Questa applicazione utilizza un servizio VPN locale per monitorare " +
+                        "il traffico di rete generato dal dispositivo, al fine di analizzare " +
+                        "le connessioni effettuate dalle applicazioni installate.\n\n" +
+
+                        "I dati raccolti sono anonimizzati e possono includere una posizione " +
+                        "geografica approssimativa. Non vengono analizzati né memorizzati " +
+                        "i contenuti delle comunicazioni.\n\n" +
+
                         "Le informazioni vengono inviate a un server remoto esclusivamente " +
-                        "per fini di analisi e per migliorare user-experience."
+                        "per finalità di analisi."
             )
             .setPositiveButton("Ho capito") { _, _ ->
                 prefs.edit()
@@ -319,7 +370,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateInfoPanel() {
         val repo = TrackerRepository(this) //accesso al repo per leggere stato locale
 
-        val count = repo.getLastNetworkRequests(1000).size //numero totale di connessioni memorizzate localmente
+        val count = repo.countAllNetworkRequests() //numero totale di connessioni memorizzate localmente
         infoConnectionsText.text = "Connessioni raccolte: $count"
 
         //sharedPreferences x memorizzare stato sync
