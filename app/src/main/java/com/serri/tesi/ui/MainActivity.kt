@@ -91,6 +91,8 @@ class MainActivity : AppCompatActivity() {
         infoLastSyncText = findViewById(R.id.infoLastSyncText)
         infoSyncStatusText = findViewById(R.id.infoSyncStatusText)
 
+        //logout button
+        val logoutButton = findViewById<Button>(R.id.logoutButton)
 
         // start cattura dati
         startCaptureButton.setOnClickListener {
@@ -105,6 +107,29 @@ class MainActivity : AppCompatActivity() {
             TesiCaptureController.stop()
             Toast.makeText(this, "Stop cattura richiesto", Toast.LENGTH_SHORT).show()
             refreshCaptureStatusUntilStable()
+        }
+
+
+        //gestione logout
+        logoutButton.setOnClickListener {
+
+            //dialog del logout
+            AlertDialog.Builder(this)
+                .setTitle("Logout")
+                .setMessage("Vuoi davvero uscire?")
+                .setPositiveButton("Sì") { _, _ ->
+
+                    TesiCaptureController.stop() //ferma cattura se in corso
+
+                    sessionManager.logout() // effettua il logout
+
+                    //torna alla schermata di login
+                    val intent = Intent(this, TesiLoginActivity::class.java)
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK //pulisce stack activity, impedisce di tornare indietro
+                    startActivity(intent)
+                }
+                .setNegativeButton("Annulla", null)
+                .show()
         }
 
 
