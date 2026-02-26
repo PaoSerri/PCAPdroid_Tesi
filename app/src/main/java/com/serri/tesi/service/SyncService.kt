@@ -94,9 +94,53 @@ class SyncService(private val context: Context) {
                 val dtos = pending.map { NetworkRequestMapper.toDto(it) }
                 val batch = BatchDto(dtos)
 
-                val success = client.sendBatch(batch) //invio http al backend
+                // Invio del batch corrente al backend remoto
+                val success = client.sendBatch(batch)
 
-                if (!success) { //in caso di errore rete o server: interrompe ciclo, mantiene record non sync, retry
+// Se l'invio fallisce (errore rete, server o autenticazione)
+                if (!success) {
+
+                    // Caso specifico: il token JWT è scaduto.
+                    // In questo scenario il BackendClient ha già eseguito il logout
+                    // (cancellazione del token tramite SessionManager).
+                    // Verifichiamo quindi se l'utente risulta non autenticato.
+                    if (!sessionManager.isLoggedIn()) {
+
+                        // Le operazioni di UI devono essere eseguite sul Main Thread.
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+
+                            // Mostra un messaggio informativo all'utente
+                            // per spiegare che la sessione è scaduta.
+                            android.widget.Toast.makeText(
+                                context,
+                                "Sessione scaduta. Effettua nuovamente l’accesso.",
+                                android.widget.Toast.LENGTH_LONG
+                            ).show()
+
+                            // Creazione Intent verso la schermata di login.
+                            // FLAG_ACTIVITY_NEW_TASK: necessario perché partiamo da Context non-Activity.
+                            // FLAG_ACTIVITY_CLEAR_TASK: pulisce lo stack per evitare ritorno a schermate precedenti.
+                            val intent = android.content.Intent(
+                                context,
+                                serri.tesi.ui.TesiLoginActivity::class.java
+                            )
+
+                            intent.flags =
+                                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+                            // Avvio automatico della LoginActivity
+                            context.startActivity(intent)
+                        }
+
+                        // Aggiorna lo stato di sincronizzazione come errore
+                        saveSyncState("ERROR")
+
+                        // Interrompe il ciclo di sincronizzazione
+                        return SyncResult.ERROR
+                    }
+
+                    // Caso generico di errore (non legato alla scadenza del token)
                     saveSyncState("ERROR")
                     return SyncResult.ERROR
                 }
